@@ -11,6 +11,7 @@ depends=('glibc' 'gcc-libs' 'git' 'util-linux')
 optdepends=('bubblewrap: sandboxed verifier and functional-verify runs (bwrap)'
             'python: functional-verify test runs, repair-dispatch syntax check and deploy-preflight check (python3)')
 makedepends=('cargo' 'git')
+checkdepends=('python')
 # ring's C objects are unusable with Rust's linker when makepkg adds -flto
 options=('!lto')
 source=("hermes-harness::git+file://${startdir}/../..")

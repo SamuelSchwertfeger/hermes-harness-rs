@@ -50,7 +50,7 @@ jobs:
     container: archlinux:latest
     steps:
       - name: System packages
-        run: pacman -Syu --noconfirm --needed base-devel git rustup ripgrep bubblewrap util-linux
+        run: pacman -Syu --noconfirm --needed base-devel git rustup ripgrep bubblewrap util-linux python
       - uses: actions/checkout@v4
       - name: Toolchain
         run: rustup default stable

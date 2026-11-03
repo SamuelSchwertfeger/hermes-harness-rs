@@ -10,7 +10,7 @@ makepkg -f
 sudo pacman -U hermes-harness-*.pkg.tar.zst
 ```
 
-`makepkg` clones the surrounding checkout (`git+file://`), so build from a committed state. Needs `cargo` and `git` (pacman `rust` or `rustup` with a default toolchain). No AUR packages are involved.
+`makepkg` clones the surrounding checkout (`git+file://`), so build from a committed state. Needs `cargo` and `git` (pacman `rust` or `rustup` with a default toolchain), plus `python` for the test step (`makepkg -s` installs it as a check dependency). No AUR packages are involved.
 
 Installed files: `/usr/bin/hermes-*`, `/usr/lib/systemd/user/hermes-harness-health.{service,timer}`, `/usr/share/hermes-harness/skills/`, docs under `/usr/share/doc/hermes-harness/`.
 
