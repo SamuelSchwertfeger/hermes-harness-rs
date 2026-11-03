@@ -57,3 +57,23 @@ fn child_runs_in_new_session() {
     assert_eq!(out.returncode, 0);
     assert_ne!(session_of(&out.stdout), own);
 }
+
+#[test]
+fn rejects_nonfinite_and_nonpositive_timeouts_before_spawn() {
+    use hermes_harness::core::execution::ExecutionError;
+    let dir = tempfile::tempdir().unwrap();
+    let command = vec!["nonexistent-timeout-test-executable".to_owned()];
+    for timeout in [
+        f64::NAN,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        0.0,
+        -1.0,
+        f64::MAX,
+    ] {
+        assert!(matches!(
+            run_bounded(&command, dir.path(), timeout),
+            Err(ExecutionError::Value(_))
+        ));
+    }
+}

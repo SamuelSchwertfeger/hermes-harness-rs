@@ -80,6 +80,7 @@ pub fn sandbox_argv(bwrap: &str, workspace: &Path, python: &str) -> Vec<String> 
     argv.extend(
         [
             python,
+            "-I",
             "-m",
             "unittest",
             "discover",
@@ -198,15 +199,15 @@ pub fn audit_checkout(
             "--ignored",
             "--exclude-standard",
             "-z",
-            "--",
-            "tests",
         ],
     )
     .map_err(|_| WorkflowError::msg("Could not inspect ignored test files"))?;
     require(
-        !ignored
-            .split('\0')
-            .any(|name| !name.is_empty() && is_python_name(name)),
+        !ignored.split('\0').any(|name| {
+            (name.starts_with("tests/") && is_python_name(name))
+                || matches!(name, "sitecustomize.py" | "usercustomize.py")
+                || Path::new(name).extension().is_some_and(|ext| ext == "pth")
+        }),
         "Unreviewed ignored Python test file",
     )?;
     Ok(files)
@@ -454,7 +455,7 @@ pub fn functional_verify_with(
         "workspace": root.to_string_lossy(),
         "checkpoint_sha256": sha256_hex(&fs::read(checkpoint)?),
         "sandbox": "bubblewrap-unshare-all-no-network",
-        "command": ["python3", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"],
+        "command": ["python3", "-I", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"],
         "tests_executed": tests_executed,
         "generated_code_executed": tests_executed,
         "execution_attempted": true,

@@ -186,6 +186,11 @@ fn sandbox_command_has_no_shell_and_no_host_home() {
     assert!(has("--clearenv"));
     assert!(has("--ro-bind"));
     assert!(has("--die-with-parent"));
+    assert!(
+        command
+            .windows(3)
+            .any(|args| args == ["/usr/bin/python3", "-I", "-m"])
+    );
     assert!(has("-m"));
     assert!(has("unittest"));
     assert!(!has("/home"));
@@ -333,4 +338,24 @@ fn rejects_ignored_test_module() {
         "ignored Python test",
     );
     assert!(!fixture.2.exists());
+}
+
+#[test]
+fn rejects_ignored_python_startup_files() {
+    for name in [
+        "sitecustomize.py",
+        "usercustomize.py",
+        "startup.pth",
+        "tests/nested.pth",
+    ] {
+        let tmp = tempfile::tempdir().unwrap();
+        let fixture = checkpoint(tmp.path());
+        std::fs::write(fixture.0.join(".git/info/exclude"), format!("{name}\n")).unwrap();
+        std::fs::write(fixture.0.join(name), "import os\n").unwrap();
+        expect_error(
+            verify(&FakeHost::with_bwrap(), &fixture, true),
+            "ignored Python test",
+        );
+        assert!(!fixture.2.exists());
+    }
 }

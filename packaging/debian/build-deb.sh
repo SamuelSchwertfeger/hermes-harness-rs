@@ -47,7 +47,7 @@ Version: $ver
 Architecture: $arch
 Maintainer: Samuel Schwertfeger <SamuelSchwertfeger@users.noreply.github.com>
 Installed-Size: $(du -sk "$pkg/usr" | cut -f1)
-Depends: libc6, libgcc-s1, git, util-linux
+Depends: libc6, libgcc-s1, git, util-linux, ripgrep
 Recommends: bubblewrap, python3
 Section: utils
 Priority: optional

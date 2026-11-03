@@ -44,6 +44,8 @@ fn submit_records_private_evidence() {
     let result = client.submit(&initial, "hello").unwrap();
     assert_eq!(result.state, AdmissionState::ReceiptRecorded);
     assert_eq!(rpc.calls[0].1["submission_id"], initial.submission_id);
+    assert_eq!(rpc.calls[0].1["text"], "hello");
+    assert!(!rpc.calls[0].1.contains_key("prompt"));
     let evidence = tmp.path().join(format!("{}.json", initial.submission_id));
     let saved: Value = serde_json::from_str(&std::fs::read_to_string(&evidence).unwrap()).unwrap();
     assert_eq!(saved["state"], "receipt_recorded");

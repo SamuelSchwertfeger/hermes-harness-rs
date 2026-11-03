@@ -70,6 +70,17 @@ fn worker_mount_is_writeable_but_evidence_read_only() {
         assert!(args.iter().any(|a| a == flag));
     }
     assert!(!args.iter().any(|a| a == "/home/hermes/.hermes"));
+    for (source, target) in [
+        ("usr/lib", "/lib"),
+        ("usr/lib64", "/lib64"),
+        ("usr/bin", "/bin"),
+        ("usr/sbin", "/sbin"),
+    ] {
+        assert!(
+            args.windows(3)
+                .any(|part| part == ["--symlink", source, target])
+        );
+    }
 }
 
 #[test]

@@ -806,3 +806,22 @@ fn provider_probe_uses_origin_with_empty_query() {
             .model_identity_verified
     );
 }
+
+#[test]
+fn gpu_policy_rejects_service_patterns_and_option_names() {
+    let dir = tempfile::tempdir().unwrap();
+    for name in [
+        "*.service",
+        "-x.service",
+        "x?.service",
+        "[ab].service",
+        ".service",
+    ] {
+        let mut setting = policy(dir.path());
+        setting.units[1].name = name.into();
+        error(setting.validate(), "Invalid GPU unit");
+    }
+    let mut setting = policy(dir.path());
+    setting.units[1].name = "model@worker-1.2.service".into();
+    setting.validate().unwrap();
+}

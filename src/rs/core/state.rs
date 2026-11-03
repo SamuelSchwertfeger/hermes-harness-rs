@@ -194,6 +194,21 @@ impl Ticket {
             return Err(StateError::Value(format!("Missing evidence: {required}")));
         }
         let old = self.stage;
+        let target_index = Stage::ALL.iter().position(|stage| *stage == target);
+        let old_index = Stage::ALL.iter().position(|stage| *stage == old);
+        if target_index < old_index {
+            let revoked: Vec<_> = Stage::ALL
+                .iter()
+                .skip_while(|stage| **stage != target)
+                .filter_map(|stage| approval_gate(*stage))
+                .collect();
+            self.approvals = self
+                .approvals
+                .iter()
+                .filter(|(gate, _)| !revoked.contains(&gate.as_str()))
+                .map(|(gate, approved)| (gate.clone(), *approved))
+                .collect();
+        }
         self.stage = target;
         self.history.push(OrderedMap::from_iter([
             ("at".to_owned(), utc_now_iso()),
@@ -204,7 +219,7 @@ impl Ticket {
     }
 }
 
-fn is_ticket_slug(text: &str) -> bool {
+pub(crate) fn is_ticket_slug(text: &str) -> bool {
     let mut chars = text.chars();
     let first_ok = chars
         .next()

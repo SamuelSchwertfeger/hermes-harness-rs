@@ -86,7 +86,13 @@ impl GPUPolicy {
         )?;
         for unit in &self.units {
             require(
-                unit.name.ends_with(".service") && !unit.name.contains('/') && unit.vram_mib > 0,
+                unit.name.strip_suffix(".service").is_some_and(|stem| {
+                    !stem.is_empty()
+                        && !stem.starts_with('-')
+                        && stem.bytes().all(|c| {
+                            c.is_ascii_lowercase() || c.is_ascii_digit() || b"@._-".contains(&c)
+                        })
+                }) && unit.vram_mib > 0,
                 "Invalid GPU unit or memory estimate",
             )?;
         }
@@ -462,10 +468,30 @@ fn perform_switch(
         )?;
     }
     systemd.start(request.target)?;
-    require(
-        systemd.active(request.target)? && ready(new)?,
+    wait_for_ready(systemd, new, ready, &mut std::thread::sleep)
+}
+
+fn wait_for_ready(
+    systemd: &mut dyn Systemd,
+    new: &GPUUnit,
+    ready: &mut dyn FnMut(&GPUUnit) -> Result<bool, WorkflowError>,
+    pause: &mut dyn FnMut(Duration),
+) -> Result<(), WorkflowError> {
+    let timeout = Duration::from_secs(120);
+    let started = Instant::now();
+    for attempt in 0..=120 {
+        if systemd.active(&new.name)? && ready(new)? {
+            return Ok(());
+        }
+        let remaining = timeout.saturating_sub(started.elapsed());
+        if attempt == 120 || remaining.is_zero() {
+            break;
+        }
+        pause(Duration::from_secs(1).min(remaining));
+    }
+    Err(WorkflowError::msg(
         "Target GPU model not authenticated and ready",
-    )
+    ))
 }
 /// Immutable switch result in Python field order.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -568,4 +594,73 @@ pub fn observed_free_vram_mib_with(runner: &dyn ProbeRunner) -> Result<i64, Work
         .map_err(|_| WorkflowError::msg("Invalid NVIDIA VRAM observation"))?;
     require(value > 0, "Invalid NVIDIA VRAM observation")?;
     Ok(value)
+}
+
+#[cfg(test)]
+mod readiness_tests {
+    #![allow(clippy::unwrap_used, clippy::panic)]
+
+    use super::*;
+
+    struct Active;
+    impl Systemd for Active {
+        fn active(&mut self, _: &str) -> Result<bool, WorkflowError> {
+            Ok(true)
+        }
+        fn start(&mut self, _: &str) -> Result<(), WorkflowError> {
+            panic!("unexpected start")
+        }
+        fn stop(&mut self, _: &str) -> Result<(), WorkflowError> {
+            panic!("unexpected stop")
+        }
+    }
+
+    fn unit() -> GPUUnit {
+        GPUUnit {
+            name: "model.service".into(),
+            vram_mib: 100,
+            pinned: false,
+            managed: true,
+            model: "model".into(),
+        }
+    }
+
+    #[test]
+    fn readiness_succeeds_on_third_probe() {
+        let mut probes = 0;
+        let mut waits = 0;
+        wait_for_ready(
+            &mut Active,
+            &unit(),
+            &mut |_| {
+                probes += 1;
+                Ok(probes == 3)
+            },
+            &mut |duration| {
+                assert_eq!(duration, Duration::from_secs(1));
+                waits += 1;
+            },
+        )
+        .unwrap();
+        assert_eq!(probes, 3);
+        assert_eq!(waits, 2);
+    }
+
+    #[test]
+    fn readiness_never_ready_is_bounded() {
+        let mut probes = 0;
+        let mut waits = 0;
+        let result = wait_for_ready(
+            &mut Active,
+            &unit(),
+            &mut |_| {
+                probes += 1;
+                Ok(false)
+            },
+            &mut |_| waits += 1,
+        );
+        assert!(result.is_err());
+        assert_eq!(probes, 121);
+        assert_eq!(waits, 120);
+    }
 }

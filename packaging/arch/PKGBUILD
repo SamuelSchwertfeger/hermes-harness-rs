@@ -7,7 +7,7 @@ pkgdesc='Rust port of the Hermes harness: skill bridge, probes and offline healt
 arch=('x86_64')
 url='https://github.com/SamuelSchwertfeger/hermes-harness-rs'
 license=('MIT')
-depends=('glibc' 'gcc-libs' 'git' 'util-linux')
+depends=('glibc' 'gcc-libs' 'git' 'util-linux' 'ripgrep')
 optdepends=('bubblewrap: sandboxed verifier and functional-verify runs (bwrap)'
             'python: functional-verify test runs, repair-dispatch syntax check and deploy-preflight check (python3)')
 makedepends=('cargo' 'git')
@@ -19,7 +19,9 @@ sha256sums=('SKIP')
 
 pkgver() {
   cd "$srcdir/hermes-harness"
-  printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+  local cargo_version
+  cargo_version=$(sed -n '/^\[package\]/,/^\[/s/^version *= *"\([^"]*\)".*/\1/p' Cargo.toml)
+  printf '%s.r%s.%s' "$cargo_version" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
 }
 
 prepare() {

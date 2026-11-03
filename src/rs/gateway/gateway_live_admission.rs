@@ -5,6 +5,7 @@ use serde_json::{Map, Value, json};
 
 use super::admission_store::{AdmissionStore, AdmissionStoreError, LocalState};
 use super::gateway_identity::{GatewayIdentityError, Receipt, Submission, parse_receipt};
+use super::gateway_lifecycle::PROMPT_TEXT_PARAM;
 use super::gateway_session_creation::{RpcFailure, SessionRpc};
 
 /// Failure raised by the live admission probe.
@@ -82,7 +83,7 @@ pub fn submit_and_parse(
     let submit_params = params(json!({
         "session_id": request.submission.session_id,
         "submission_id": request.submission.submission_id,
-        "text": request.text,
+        (PROMPT_TEXT_PARAM): request.text,
     }));
     let raw_submit = rpc.rpc("prompt.submit", &submit_params).map_err(|error| {
         GatewayIdentityError::OutcomeUnknown {

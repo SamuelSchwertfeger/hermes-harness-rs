@@ -16,6 +16,24 @@ fn bubblewrap_profile_denies_network_and_root_writes() {
     std::fs::write(&executable, "# placeholder").unwrap();
     let command = bubblewrap_argv(&SandboxSpec::new(dir.path(), &executable, &["-q"])).unwrap();
     assert!(command.iter().any(|item| item == "--unshare-all"));
+    assert!(
+        command
+            .iter()
+            .position(|item| item == "--clearenv")
+            .unwrap()
+            < command.iter().position(|item| item == "--setenv").unwrap()
+    );
+    for (name, value) in [
+        ("PATH", "/usr/bin:/bin"),
+        ("HOME", "/tmp"),
+        ("TMPDIR", "/tmp"),
+    ] {
+        assert!(
+            command
+                .windows(3)
+                .any(|args| args == ["--setenv", name, value])
+        );
+    }
     let bind = command.iter().position(|item| item == "--ro-bind").unwrap();
     assert_eq!(command[bind + 1], "/");
     assert!(command.iter().any(|item| item == "--tmpfs"));

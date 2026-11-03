@@ -87,7 +87,7 @@ pub fn git(repo: &Path, args: &[&str]) -> Result<String, WorktreeError> {
             "PATH",
             std::env::var_os("PATH").unwrap_or_else(|| "/usr/bin:/bin".into()),
         )
-        .env("HOME", repo)
+        .env("GIT_CONFIG_GLOBAL", "/dev/null")
         .env("GIT_CONFIG_NOSYSTEM", "1")
         .env("GIT_TERMINAL_PROMPT", "0")
         .stdin(Stdio::null())

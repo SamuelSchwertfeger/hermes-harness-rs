@@ -127,3 +127,22 @@ fn bad_ticket_and_ownership() {
     let text = err.to_string();
     assert!(text.contains("Invalid relative path"), "{text}");
 }
+
+#[test]
+fn repository_gitconfig_is_not_global_configuration() {
+    let (_tmp, repo) = repo();
+    std::fs::write(
+        repo.join(".gitconfig"),
+        "[core]\n    hooksPath = hostile-hooks\n[alias]\n    injected = !exit 99\n",
+    )
+    .unwrap();
+    git(&repo, &["add", ".gitconfig"]);
+    git(
+        &repo,
+        &["commit", "-qm", "Track hostile home configuration"],
+    );
+    let output =
+        hermes_harness::git::worktrees::git(&repo, &["config", "--show-origin", "--list"]).unwrap();
+    assert!(!output.contains("hostile-hooks"), "{output}");
+    assert!(!output.contains("alias.injected"), "{output}");
+}

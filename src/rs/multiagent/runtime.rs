@@ -29,6 +29,8 @@ pub const MAX_PATHS: usize = 32;
 /// Maximum length of the combined `<plan>-<node>` task identifier.
 pub const MAX_TASK_ID_LENGTH: usize = 64;
 
+const DECISION_FILE: &str = "decision.json";
+
 /// Invalid plan or fenced workflow; operator inspection required.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -481,7 +483,7 @@ pub fn inspect(root: &Path, run_id: &str) -> Result<RunSummary, WorkflowError> {
         return fail("Invalid persisted plan");
     };
     let tasks = persisted_tasks(&directory, nodes)?;
-    let decision_path = directory.join("decision.json");
+    let decision_path = directory.join(DECISION_FILE);
     let decision = if decision_path.exists() {
         Some(record(&decision_path)?)
     } else {
@@ -619,7 +621,7 @@ pub fn execute(
         }
     }
     write_new(
-        &directory.join("decision.json"),
+        &directory.join(DECISION_FILE),
         &json!({"state": "pending", "approved": false, "integrated": false, "run_id": plan.id}),
     )?;
     inspect(root, &plan.id)
@@ -643,10 +645,21 @@ pub fn decide(
     {
         return fail("Cannot decide on incomplete or uncertain run");
     }
-    write_new(
-        &root.join(run_id).join("human-decision.json"),
-        &json!({"decision": action.as_str(), "does_not_authorize_merge_or_push": true}),
-    )?;
+    let directory = root.join(run_id);
+    if summary
+        .decision
+        .as_ref()
+        .is_some_and(|value| value.get("decision").is_some())
+    {
+        return Err(std::io::Error::from(std::io::ErrorKind::AlreadyExists).into());
+    }
+    let decision = json!({"decision": action.as_str(), "does_not_authorize_merge_or_push": true});
+    // A durable exclusive claim prevents replay, including after an interrupted replacement.
+    let claim = directory.join("decision-claim.json");
+    write_new(&claim, &decision)?;
+    let next = directory.join("decision-next.json");
+    write_new(&next, &decision)?;
+    std::fs::rename(&next, directory.join(DECISION_FILE))?;
     Ok(DecisionResult {
         run_id: run_id.to_owned(),
         decision: action,

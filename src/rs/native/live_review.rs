@@ -44,7 +44,7 @@ fn denied<T>(message: &str) -> Result<T, NativeError> {
     Err(WorkflowError::msg(message).into())
 }
 
-fn new_file_diff(content: &str, path: &str) -> String {
+pub(crate) fn new_file_diff(content: &str, path: &str) -> String {
     let lines = splitlines_keepends(content);
     if lines.is_empty() {
         return String::new();
@@ -124,10 +124,7 @@ pub fn reviewed_live_task_with(
     if !r.authorized {
         return denied("Explicit inference authorization required");
     }
-    let mut chars = r.task_id.chars();
-    if !chars.next().is_some_and(|c| c.is_ascii_alphanumeric())
-        || r.task_id.len() > 64
-        || !chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    if !crate::core::state::is_ticket_slug(r.task_id)
         || r.session.chars().all(crate::util::is_py_space)
         || r.session.chars().count() > MAX_SESSION_ID_LENGTH
     {
@@ -195,4 +192,22 @@ pub fn reviewed_live_task_with(
         fields.insert("receipt".to_owned(), json!(py_path_str(&receipt)));
     }
     Ok(evidence)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn task_identity_uses_ticket_slug_rule() {
+        let request = super::LiveReview {
+            repo: std::path::Path::new("."),
+            state: std::path::Path::new("."),
+            session: "session",
+            task_id: "Foo_1",
+            objective: "test",
+            owned_path: "example.py",
+            authorized: true,
+        };
+        let result = super::reviewed_live_task_with(&request, None);
+        assert!(result.is_err_and(|error| error.to_string().contains("Invalid task")));
+    }
 }

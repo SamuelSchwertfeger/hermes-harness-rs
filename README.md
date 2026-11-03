@@ -1,6 +1,6 @@
 # Hermes Harness
 
-Ticket-driven multi-agent orchestration for [Hermes](https://github.com/NousResearch/hermes-agent), written in Rust and shipped as static binaries. It is a port of Seth Barrett's Python `hermes-harness`.
+Ticket-driven multi-agent orchestration for [Hermes](https://github.com/NousResearch/hermes-agent), written in Rust and shipped as native binaries. It is a port of Seth Barrett's Python `hermes-harness`.
 
 Hermes is an agent you chat with through its gateway; it loads skills (`SKILL.md` instruction files) and runs commands through its terminal tool. The harness is for operators who want Hermes to change code under supervision. Its skills in `hermes_skills/` call the harness binaries; the offline demos below need no Hermes at all.
 
@@ -63,7 +63,7 @@ Skill discovery and session binding on a live gateway are not yet qualified. The
 
 ## Install as a package
 
-Give the harness its own Arch, CachyOS or Debian host or VM. Both packages install `/usr/bin/hermes-*`, the skill manifests under `/usr/share/hermes-harness/skills/`, and a hardened systemd user timer that runs `hermes-skill-bridge doctor` daily. Runtime dependencies are `git` and `util-linux`; add `bubblewrap` for `functional-verify` and `sandbox-tool`.
+Give the harness its own Arch, CachyOS or Debian host or VM. Both packages install `/usr/bin/hermes-*`, the skill manifests under `/usr/share/hermes-harness/skills/`, and a hardened systemd user timer that runs `hermes-skill-bridge doctor` daily. Runtime dependencies are `git`, `util-linux` and `ripgrep`; add `bubblewrap` for `functional-verify` and `sandbox-tool`.
 
 ### Arch and CachyOS
 
@@ -127,9 +127,10 @@ The Python sources are vendored under `tests/fixtures/pycorpus/` (snapshot of 20
 
 ### Gains
 
-- **Deployment:** static binaries instead of a Python environment. The host still runs Hermes, and `functional-verify` and `repair-dispatch` still call `/usr/bin/python3`.
+- **Deployment:** native binaries instead of a Python environment. The host still runs Hermes, and `functional-verify` and `repair-dispatch` still call `/usr/bin/python3`.
 - **Startup:** help and probe commands take about 0.5 to 0.8 ms against 70 to 125 ms. Creating a ticket takes 6.6 ms against 169 ms.
 - **Memory:** peak RSS is 2 to 6 MiB against 15 to 31 MiB.
+- **Bugs the original still has are fixed.** The live sandbox plan mounts the merged-usr `/lib`, `/lib64`, `/bin` and `/sbin` links, so dynamic binaries load. `decide` and `inspect` agree on the decision file, and `prompt.submit` sends `text` as the Hermes gateway expects. Git ignores repository-supplied global config, moving a ticket backward revokes the later approvals, and `functional-verify` runs Python in isolated mode. Each is listed in [DIVERGENCES.md](DIVERGENCES.md).
 - **Packaging and logs:** an Arch `PKGBUILD`, a Debian package script, a hardened systemd health timer, and opt-in JSON logs.
 
 ### Costs and changes

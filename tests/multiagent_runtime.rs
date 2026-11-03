@@ -96,6 +96,11 @@ fn full_temporary_git_repo_flow() {
         Some(json!({"state": "pending", "approved": false, "integrated": false, "run_id": "run"}))
     );
     assert!(!decide(&state, "run", Decision::Reject).unwrap().applied);
+    assert_eq!(
+        inspect(&state, "run").unwrap().decision,
+        Some(json!({"decision": "reject", "does_not_authorize_merge_or_push": true}))
+    );
+    assert!(!state.join("run/human-decision.json").exists());
     assert!(
         decide(&state, "run", Decision::Approve)
             .unwrap_err()

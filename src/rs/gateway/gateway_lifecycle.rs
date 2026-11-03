@@ -15,6 +15,9 @@ use serde_json::{Map, Value};
 
 use crate::util::uuid4_hex;
 
+/// Gateway prompt.submit parameter carrying the prompt body.
+pub(crate) const PROMPT_TEXT_PARAM: &str = "text";
+
 crate::util::wire_enum! {
     /// Lifecycle state of one admission.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -212,7 +215,7 @@ impl<'a> GatewayLifecycle<'a> {
         let params = BTreeMap::from([
             ("session_id".to_owned(), uncertain.session_id.clone()),
             ("submission_id".to_owned(), uncertain.submission_id.clone()),
-            ("prompt".to_owned(), prompt.to_owned()),
+            (PROMPT_TEXT_PARAM.to_owned(), prompt.to_owned()),
         ]);
         let Ok(response) = self.rpc.call("prompt.submit", &params) else {
             return Ok(uncertain);

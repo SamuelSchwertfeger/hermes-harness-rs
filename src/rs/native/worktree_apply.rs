@@ -60,11 +60,24 @@ fn read_receipt(path: &Path) -> Result<Map<String, Value>, WorkflowError> {
     }
 }
 
-/// `re.fullmatch(r'@@ -0,0 \+1,\d+ @@\n', line)`.
-fn is_new_file_hunk(line: &str) -> bool {
-    line.strip_prefix("@@ -0,0 +1,")
-        .and_then(|rest| rest.strip_suffix(" @@\n"))
-        .is_some_and(|digits| !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()))
+/// Unified diff ranges default to one line when the count is omitted.
+fn diff_range(text: &str) -> Option<(usize, usize)> {
+    let (start, count) = text.split_once(',').unwrap_or((text, "1"));
+    if [start, count]
+        .iter()
+        .any(|part| part.is_empty() || !part.bytes().all(|c| c.is_ascii_digit()))
+    {
+        return None;
+    }
+    Some((start.parse().ok()?, count.parse().ok()?))
+}
+
+fn new_file_count(line: &str) -> Option<usize> {
+    let ranges = line.strip_prefix("@@ -")?.strip_suffix(" @@\n")?;
+    let (old, new) = ranges.split_once(" +")?;
+    let (old_start, old_count) = diff_range(old)?;
+    let (new_start, new_count) = diff_range(new)?;
+    (old_start == 0 && old_count == 0 && new_start == 1).then_some(new_count)
 }
 
 /// Decode only the new-file unified-diff form emitted by `live_review`.
@@ -77,11 +90,12 @@ fn content_from_new_file_diff(diff: &str, path: &str) -> Result<String, Workflow
     if !headers_ok {
         return fail("Invalid new-file diff headers");
     }
-    if !lines.get(2).is_some_and(|line| is_new_file_hunk(line)) {
-        return fail("Invalid new-file diff hunk");
-    }
+    let count = lines
+        .get(2)
+        .and_then(|line| new_file_count(line))
+        .ok_or_else(|| WorkflowError::msg("Invalid new-file diff hunk"))?;
     let body = lines.get(3..).unwrap_or_default();
-    if body.iter().any(|line| !line.starts_with('+')) {
+    if body.len() != count || body.iter().any(|line| !line.starts_with('+')) {
         return fail("Invalid new-file diff lines");
     }
     Ok(body.iter().filter_map(|line| line.get(1..)).collect())
@@ -270,6 +284,21 @@ mod tests {
         assert_eq!(task, "new-smoke");
         assert_eq!(owned, ["smoke_math.py"]);
         assert_eq!(proposal.files[0].content, CONTENT);
+    }
+
+    #[test]
+    fn one_line_new_file_round_trips() {
+        let content = "VALUE = 7\n";
+        let diff = crate::native::live_review::new_file_diff(content, "smoke_math.py");
+        assert!(diff.contains("@@ -0,0 +1 @@\n"));
+        let mut receipt = record();
+        receipt["files"][0]["diff"] = json!(diff);
+        receipt["files"][0]["sha256"] = json!(sha256_hex(content.as_bytes()));
+        let (_, _, proposal) = admitted_proposal(&receipt).unwrap();
+        assert_eq!(proposal.files[0].content, content);
+        assert_eq!(super::diff_range("0"), Some((0, 1)));
+        assert_eq!(super::diff_range("1"), Some((1, 1)));
+        assert_eq!(super::diff_range("0,0"), Some((0, 0)));
     }
 
     #[test]

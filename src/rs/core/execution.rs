@@ -195,9 +195,11 @@ pub fn run_bounded(
     timeout_secs: f64,
 ) -> Result<RunResult, ExecutionError> {
     let invalid = ExecutionError::Value("Expected a command and positive timeout");
-    if timeout_secs.is_nan() || timeout_secs <= 0.0 {
+    if !timeout_secs.is_finite() || timeout_secs <= 0.0 {
         return Err(invalid);
     }
+    let limit = Duration::try_from_secs_f64(timeout_secs)
+        .map_err(|_| ExecutionError::Value("Expected a command and positive timeout"))?;
     let Some(mut command) = build(argv, cwd) else {
         return Err(invalid);
     };
@@ -205,9 +207,8 @@ pub fn run_bounded(
     await_group(&child);
     let out = drain(child.stdout.take());
     let err = drain(child.stderr.take());
-    let limit = Duration::try_from_secs_f64(timeout_secs).ok();
     let mut timed_out = false;
-    if !wait_until(&mut child, limit)? {
+    if !wait_until(&mut child, Some(limit))? {
         timed_out = true;
         // If TERM cannot be sent, still honour the grace period before the hard kill.
         let _ = signal_group(&mut child, Signal::Term);

@@ -25,7 +25,6 @@ pub struct MountEvidence {
     pub readonly: Vec<MountPair>,
 }
 
-const MOUNT_FLAGS: [&str; 3] = ["--bind", "--ro-bind", "--dev-bind"];
 const REQUIRED_FLAGS: [&str; 4] = [
     "--unshare-net",
     "--unshare-pid",
@@ -57,26 +56,46 @@ fn bwrap_index(argv: &[String]) -> Result<usize, OperatorSafetyError> {
 /// # Errors
 /// The mount evidence has an invalid shape or unsupported mount values.
 pub fn extract_mounts(argv: &[String]) -> Result<MountEvidence, OperatorSafetyError> {
+    parse_options(argv).map(|(mounts, _)| mounts)
+}
+
+fn parse_options(argv: &[String]) -> Result<(MountEvidence, BTreeSet<&str>), OperatorSafetyError> {
     let mut cursor = bwrap_index(argv)? + 1;
     let mut writable = Vec::new();
     let mut readonly = Vec::new();
+    let mut flags = BTreeSet::new();
     while let Some(option) = argv.get(cursor) {
-        if option == "--chdir" {
+        if option == "--" || !option.starts_with('-') {
             break;
         }
-        if !MOUNT_FLAGS.contains(&option.as_str()) {
-            cursor += 1;
-            continue;
+        let arity = match option.as_str() {
+            "--bind" | "--bind-try" | "--dev-bind" | "--ro-bind" => {
+                let pair = mount_decl(argv, cursor)?;
+                if option == "--ro-bind" {
+                    readonly.push(pair);
+                } else {
+                    writable.push(pair);
+                }
+                2
+            }
+            "--symlink" | "--setenv" => 2,
+            "--chdir" | "--proc" | "--dev" | "--tmpfs" | "--dir" => 1,
+            "--unshare-net" | "--unshare-pid" | "--unshare-user" | "--unshare-all"
+            | "--die-with-parent" | "--new-session" | "--clearenv" => 0,
+            _ => return refuse("Unknown bubblewrap option"),
+        };
+        for offset in 1..=arity {
+            if argv
+                .get(cursor + offset)
+                .is_none_or(|arg| arg.starts_with("--"))
+            {
+                return refuse("Incomplete bubblewrap option");
+            }
         }
-        let pair = mount_decl(argv, cursor)?;
-        if option == "--ro-bind" {
-            readonly.push(pair);
-        } else {
-            writable.push(pair);
-        }
-        cursor += 3;
+        flags.insert(option.as_str());
+        cursor += arity + 1;
     }
-    Ok(MountEvidence { writable, readonly })
+    Ok((MountEvidence { writable, readonly }, flags))
 }
 
 fn at<'a>(pairs: &'a [MountPair], destination: &'a str) -> impl Iterator<Item = &'a MountPair> {
@@ -91,7 +110,7 @@ fn check_role_mounts(mounts: &MountEvidence, role: &str) -> Result<(), OperatorS
         return refuse("Evidence must have one read-only source");
     }
     if role == "worker" {
-        if work_writable != 1 || work_readonly != 0 {
+        if work_writable != 1 || work_readonly != 0 || mounts.writable.len() != 1 {
             return refuse("Worker workspace must have one writable source");
         }
     } else if work_readonly != 1 || work_writable != 0 || !mounts.writable.is_empty() {
@@ -111,15 +130,8 @@ pub fn validate_role_sandbox(
     if !matches!(role, "worker" | "reviewer") {
         return refuse("Unknown sandbox role");
     }
-    let mounts = extract_mounts(argv)?;
-    let mut options = argv.get(bwrap_index(argv)? + 1..).unwrap_or_default();
-    if let Some(chdir) = options.iter().position(|arg| arg == "--chdir") {
-        options = options.get(..chdir).unwrap_or_default();
-    }
-    if REQUIRED_FLAGS
-        .iter()
-        .any(|flag| !options.iter().any(|arg| arg == flag))
-    {
+    let (mounts, options) = parse_options(argv)?;
+    if REQUIRED_FLAGS.iter().any(|flag| !options.contains(flag)) {
         return refuse("Required sandbox isolation missing");
     }
     check_role_mounts(&mounts, role)?;
@@ -145,7 +157,7 @@ pub fn validate_separate_roles(
 ) -> Result<(), OperatorSafetyError> {
     let worker = validate_role_sandbox(worker_argv, "worker")?;
     let reviewer = validate_role_sandbox(reviewer_argv, "reviewer")?;
-    let aliased = worker.writable.first().is_some_and(|(writable, _)| {
+    let aliased = worker.writable.iter().any(|(writable, _)| {
         reviewer
             .readonly
             .iter()

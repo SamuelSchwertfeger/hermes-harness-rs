@@ -149,3 +149,43 @@ fn duplicate_mount_source_denied() {
         .collect();
     assert!(message(validate_role_sandbox(&broken, "worker")).contains("reused"));
 }
+
+#[test]
+fn extra_writable_mounts_rejected_before_and_after_chdir() {
+    for flag in ["--bind", "--bind-try", "--dev-bind"] {
+        for after_chdir in [false, true] {
+            let mut argv = worker();
+            let at = if after_chdir {
+                argv.len() - 1
+            } else {
+                argv.iter().position(|arg| arg == "--chdir").unwrap()
+            };
+            argv.splice(at..at, strings(&[flag, "/safe/extra", "/extra"]));
+            assert!(validate_role_sandbox(&argv, "worker").is_err());
+            assert!(validate_separate_roles(&argv, &reviewer()).is_err());
+        }
+    }
+}
+
+#[test]
+fn unknown_bwrap_option_is_rejected() {
+    let mut argv = worker();
+    argv.insert(argv.len() - 1, "--unknown".to_owned());
+    assert!(message(validate_role_sandbox(&argv, "worker")).contains("Unknown"));
+}
+
+#[test]
+fn payload_options_cannot_supply_isolation_flags() {
+    let mut argv = worker();
+    argv.retain(|arg| arg != "--unshare-net");
+    argv.push("--unshare-net".to_owned());
+    assert!(message(validate_role_sandbox(&argv, "worker")).contains("isolation"));
+}
+
+#[test]
+fn explicit_command_separator_ends_option_parsing() {
+    let mut argv = worker();
+    argv.insert(argv.len() - 1, "--".to_owned());
+    argv.extend(strings(&["--bind", "/payload", "/extra"]));
+    validate_role_sandbox(&argv, "worker").unwrap();
+}

@@ -84,3 +84,52 @@
   home directory. The published copy (Rust and the vendored Python) uses the
   placeholder `/home/operator`, so on a real host the check reduces to "not root".
   Set the placeholder to your operator's home if you rely on it.
+
+- **Supervised sandbox library paths.** Rust creates unconditional
+  merged-usr symlinks for /lib, /lib64, /bin and /sbin; Python binds only /usr,
+  which prevents dynamic executables from loading.
+
+- **Multiagent decision visibility.** Rust atomically replaces the
+  pending decision.json with the human decision, using a durable exclusive claim
+  to prevent duplicate decisions. Python writes an unread human-decision.json.
+
+- **Gateway prompt parameter.** Lifecycle and live admission share
+  the documented "text" parameter. Python lifecycle sends "prompt".
+
+- **Git global configuration isolation.** Rust leaves HOME unset in
+  its scrubbed Git environment and sets GIT_CONFIG_GLOBAL=/dev/null. Python uses
+  the repository as HOME, allowing a tracked .gitconfig to configure Git.
+
+- **Functional Python isolation.** Rust uses python3 -I and audits
+  ignored root sitecustomize.py/usercustomize.py and all .pth files, in addition
+  to Python files under tests/. Python allows ambient interpreter startup inputs.
+
+- **Complete sandbox option validation.** Rust parses options through
+  the command boundary, rejects unknown options and extra writable destinations,
+  and checks every writable source for role aliasing. Python stops at --chdir.
+
+- **Unified diff default counts.** Rust defaults omitted range counts
+  to one and checks the body count. Python rejects one-line new-file diffs emitted
+  by its own review producer.
+
+- **Live task slug consistency.** Rust uses the ticket slug validator
+  for live reviews. Python accepts uppercase and underscore task IDs that later
+  ticket and receipt operations reject.
+
+- **Rollback approval revocation.** Rust clears approval gates at or
+  after a backward transition's target. Python retains stale approvals.
+
+- **Literal GPU service identities.** Rust accepts only nonempty
+  lowercase service names using letters, digits, @, dot, underscore and hyphen,
+  with no leading hyphen. Python permits globs and option-like service names.
+
+- **Finite execution timeouts.** Rust rejects nonfinite and
+  unrepresentable positive timeouts before spawning. Python can lose its deadline.
+
+- **GPU readiness polling.** Rust polls active and authenticated
+  readiness for up to 120 seconds with one-second waits and a probe bound.
+  Python checks only once immediately after starting the target.
+
+- **Experimental sandbox environment.** Rust clears ambient
+  environment variables and sets PATH, HOME and TMPDIR explicitly.
+  Python inherits host environment variables.

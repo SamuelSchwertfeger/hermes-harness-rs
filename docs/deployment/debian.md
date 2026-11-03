@@ -24,7 +24,7 @@ sudo apt install ./hermes-harness_*.deb
 
 The script clones the committed checkout (uncommitted edits are left out), builds, runs the tests and packages the result. Set `DEB_BUILD_OPTIONS=nocheck` to skip the tests. The version is `<crate version>+r<commit count>.<short sha>`.
 
-Dependencies are `git` and `util-linux`. apt also pulls the recommended `bubblewrap` (for `functional-verify` and `sandbox-tool`) and `python3` (functional-verify test runs, repair-dispatch syntax check); add `--no-install-recommends` to skip them.
+Dependencies are `git`, `util-linux` and `ripgrep`. apt also pulls the recommended `bubblewrap` (for `functional-verify` and `sandbox-tool`) and `python3` (functional-verify test runs, repair-dispatch syntax check); add `--no-install-recommends` to skip them.
 
 Installed files: `/usr/bin/hermes-*`, `/usr/lib/systemd/user/hermes-harness-health.{service,timer}`, `/usr/share/hermes-harness/skills/`, docs under `/usr/share/doc/hermes-harness/`.
 

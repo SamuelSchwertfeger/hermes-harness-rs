@@ -87,6 +87,7 @@ pub fn bubblewrap_argv(spec: &SandboxSpec) -> Result<Vec<String>, WorkflowError>
         "--die-with-parent",
         "--new-session",
         "--unshare-all",
+        "--clearenv",
         "--ro-bind",
         "/",
         "/",
@@ -103,7 +104,9 @@ pub fn bubblewrap_argv(spec: &SandboxSpec) -> Result<Vec<String>, WorkflowError>
     .collect();
     argv.push(root.to_string_lossy().into_owned());
     for (name, value) in [
+        ("PATH", "/usr/bin:/bin"),
         ("HOME", SANDBOX_TMP),
+        ("TMPDIR", SANDBOX_TMP),
         ("PYTHONDONTWRITEBYTECODE", "1"),
         ("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1"),
         ("UV_OFFLINE", "1"),
