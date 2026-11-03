@@ -67,13 +67,27 @@ fn head(root: &Path) -> Result<String, WorkflowError> {
     let executable = "/usr/bin/git";
     #[cfg(not(unix))]
     let executable = "git";
-    let mut child = Command::new(executable)
+    let mut command = Command::new(executable);
+    command
         .arg("-C")
         .arg(root)
         .args(["rev-parse", "HEAD"])
+        .env_clear()
+        .env(
+            "PATH",
+            std::env::var_os("PATH").unwrap_or_else(|| "/usr/bin:/bin".into()),
+        )
+        .env("GIT_CONFIG_GLOBAL", "/dev/null")
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()?;
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    if let Some(system_root) = std::env::var_os("SYSTEMROOT") {
+        command.env("SYSTEMROOT", system_root);
+    }
+    let mut child = command.spawn()?;
     let mut stdout = child.stdout.take();
     let reader = thread::spawn(move || {
         let mut bytes = Vec::new();
