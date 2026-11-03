@@ -24,7 +24,7 @@ On Arch, CachyOS or Debian 13 you can build a package instead; see [Install as a
 
 ## Quick start without Hermes
 
-From a checkout build; after a package install, drop the `target/release/` prefix.
+Run these from the root of a source checkout. After a package install, drop the `target/release/` prefix but keep the checkout: the packages do not ship `docs/multiagent-example.json`.
 
 ```sh
 target/release/hermes-skill-bridge doctor     # static capability report; checks nothing on the host
