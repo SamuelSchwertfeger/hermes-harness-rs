@@ -100,7 +100,8 @@
   its scrubbed Git environment and sets GIT_CONFIG_GLOBAL=/dev/null. Python uses
   the repository as HOME, allowing a tracked .gitconfig to configure Git.
 
-- **Functional Python isolation.** Rust uses python3 -I and audits
+- **Functional Python isolation.** Rust runs python3 -E -s (no PYTHON* environment, no user site; the
+  checkout stays importable) and audits
   ignored root sitecustomize.py/usercustomize.py and all .pth files, in addition
   to Python files under tests/. Python allows ambient interpreter startup inputs.
 

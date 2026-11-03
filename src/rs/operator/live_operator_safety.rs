@@ -85,10 +85,7 @@ fn parse_options(argv: &[String]) -> Result<(MountEvidence, BTreeSet<&str>), Ope
             _ => return refuse("Unknown bubblewrap option"),
         };
         for offset in 1..=arity {
-            if argv
-                .get(cursor + offset)
-                .is_none_or(|arg| arg.starts_with("--"))
-            {
+            if argv.get(cursor + offset).is_none() {
                 return refuse("Incomplete bubblewrap option");
             }
         }

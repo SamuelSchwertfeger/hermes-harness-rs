@@ -80,7 +80,8 @@ pub fn sandbox_argv(bwrap: &str, workspace: &Path, python: &str) -> Vec<String> 
     argv.extend(
         [
             python,
-            "-I",
+            "-E",
+            "-s",
             "-m",
             "unittest",
             "discover",
@@ -455,7 +456,7 @@ pub fn functional_verify_with(
         "workspace": root.to_string_lossy(),
         "checkpoint_sha256": sha256_hex(&fs::read(checkpoint)?),
         "sandbox": "bubblewrap-unshare-all-no-network",
-        "command": ["python3", "-I", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"],
+        "command": ["python3", "-E", "-s", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"],
         "tests_executed": tests_executed,
         "generated_code_executed": tests_executed,
         "execution_attempted": true,

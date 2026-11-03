@@ -188,8 +188,8 @@ fn sandbox_command_has_no_shell_and_no_host_home() {
     assert!(has("--die-with-parent"));
     assert!(
         command
-            .windows(3)
-            .any(|args| args == ["/usr/bin/python3", "-I", "-m"])
+            .windows(4)
+            .any(|args| args == ["/usr/bin/python3", "-E", "-s", "-m"])
     );
     assert!(has("-m"));
     assert!(has("unittest"));
@@ -358,4 +358,37 @@ fn rejects_ignored_python_startup_files() {
         );
         assert!(!fixture.2.exists());
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn sandbox_python_flags_keep_checkout_root_importable() {
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::write(
+        tmp.path().join("calculator.py"),
+        "def add(a, b):\n    return a + b\n",
+    )
+    .unwrap();
+    std::fs::create_dir(tmp.path().join("tests")).unwrap();
+    std::fs::write(
+        tmp.path().join("tests/test_calc.py"),
+        "import unittest\nimport calculator\n\nclass T(unittest.TestCase):\n    def test_add(self):\n        self.assertEqual(calculator.add(1, 2), 3)\n",
+    )
+    .unwrap();
+    let command = sandbox_argv("/usr/bin/bwrap", tmp.path(), "python3");
+    let start = command.iter().position(|arg| arg == "python3").unwrap();
+    let Ok(output) = Command::new(&command[start])
+        .args(&command[start + 1..])
+        .current_dir(tmp.path())
+        .env_clear()
+        .env("PATH", "/usr/bin:/bin")
+        .output()
+    else {
+        return;
+    };
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }

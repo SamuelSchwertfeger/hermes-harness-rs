@@ -189,3 +189,24 @@ fn explicit_command_separator_ends_option_parsing() {
     argv.extend(strings(&["--bind", "/payload", "/extra"]));
     validate_role_sandbox(&argv, "worker").unwrap();
 }
+
+#[test]
+fn option_looking_setenv_value_is_an_operand() {
+    let mut argv = worker();
+    let at = argv.len() - 1;
+    for (offset, item) in ["--setenv", "TOOL_ARGS", "--verbose"].iter().enumerate() {
+        argv.insert(at + offset, (*item).to_owned());
+    }
+    validate_role_sandbox(&argv, "worker").unwrap();
+}
+
+#[test]
+fn setenv_value_cannot_supply_isolation_flag() {
+    let mut argv = worker();
+    argv.retain(|arg| arg != "--unshare-net");
+    let at = argv.len() - 1;
+    for (offset, item) in ["--setenv", "X", "--unshare-net"].iter().enumerate() {
+        argv.insert(at + offset, (*item).to_owned());
+    }
+    assert!(message(validate_role_sandbox(&argv, "worker")).contains("isolation"));
+}

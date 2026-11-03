@@ -479,9 +479,15 @@ fn wait_for_ready(
 ) -> Result<(), WorkflowError> {
     let timeout = Duration::from_secs(120);
     let started = Instant::now();
+    let mut last_error = None;
     for attempt in 0..=120 {
-        if systemd.active(&new.name)? && ready(new)? {
-            return Ok(());
+        if systemd.active(&new.name)? {
+            // A starting service may refuse connections; retry until the deadline.
+            match ready(new) {
+                Ok(true) => return Ok(()),
+                Ok(false) => {}
+                Err(error) => last_error = Some(error),
+            }
         }
         let remaining = timeout.saturating_sub(started.elapsed());
         if attempt == 120 || remaining.is_zero() {
@@ -489,9 +495,8 @@ fn wait_for_ready(
         }
         pause(Duration::from_secs(1).min(remaining));
     }
-    Err(WorkflowError::msg(
-        "Target GPU model not authenticated and ready",
-    ))
+    Err(last_error
+        .unwrap_or_else(|| WorkflowError::msg("Target GPU model not authenticated and ready")))
 }
 /// Immutable switch result in Python field order.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -644,6 +649,37 @@ mod readiness_tests {
         .unwrap();
         assert_eq!(probes, 3);
         assert_eq!(waits, 2);
+    }
+
+    #[test]
+    fn readiness_retries_transient_probe_errors() {
+        let mut probes = 0;
+        wait_for_ready(
+            &mut Active,
+            &unit(),
+            &mut |_| {
+                probes += 1;
+                if probes < 3 {
+                    Err(WorkflowError::msg("connection refused"))
+                } else {
+                    Ok(true)
+                }
+            },
+            &mut |_| {},
+        )
+        .unwrap();
+        assert_eq!(probes, 3);
+    }
+
+    #[test]
+    fn readiness_persistent_probe_error_fails_closed() {
+        let result = wait_for_ready(
+            &mut Active,
+            &unit(),
+            &mut |_| Err(WorkflowError::msg("connection refused")),
+            &mut |_| {},
+        );
+        assert!(result.is_err());
     }
 
     #[test]
