@@ -6,13 +6,13 @@ Hermes is an agent you chat with through its gateway; it loads skills (`SKILL.md
 
 A coordinator model plans, and cheaper local worker and reviewer models propose changes. Every step that changes a repository or runs code sits behind an evidence digest and an explicit operator decision: inference does not authorize application, application does not authorize execution, and a passing test does not authorize merging.
 
-- Investigate, plan, review, apply and verify each produce their own digest and decision point.
-- Default paths run deterministic doubles. Nothing touches a network, gateway or live repository unless you ask, and each live action needs its own `--authorize-*` flag.
+- Reviewed application and functional verification each need a recorded receipt and their own authorization flag.
+- The offline demos run deterministic doubles. Live repository and gateway actions need an explicit `--authorize-*` flag; probe commands such as `provider-probe`, `xps-models` and `local-scout` contact model services when you run them.
 - One crate, twelve binaries, no Python environment for the harness itself.
 
 ## Build
 
-Requires Rust 1.88 or newer (edition 2024), Git, make, and Python 3 for the tests. `make check` also needs the rustfmt and clippy components (`rustup component add rustfmt clippy`). Linux is the target: the sandbox and broker refuse non-Unix hosts by design. Windows builds but skips the Unix-only tests, and the Makefile is untested there.
+Requires Rust 1.88 or newer (edition 2024), a C compiler and linker (SQLite is bundled), Git, make, and Python 3 for the tests. `make check` also needs the rustfmt and clippy components (`rustup component add rustfmt clippy`). Linux is the target: the sandbox and broker refuse non-Unix hosts by design. Windows builds but skips the Unix-only tests, and the Makefile is untested there.
 
 ```sh
 git clone https://github.com/SamuelSchwertfeger/hermes-harness-rs && cd hermes-harness-rs
@@ -27,9 +27,11 @@ On Arch, CachyOS or Debian 13 you can build a package instead; see [Install as a
 From a checkout build; after a package install, drop the `target/release/` prefix.
 
 ```sh
-target/release/hermes-skill-bridge doctor                        # read-only health check
-target/release/hermes-supervised-demo                            # offline demo in a throwaway Git repo
-target/release/hermes-native agents-assemble --confirm-offline   # deterministic doubles, no network
+target/release/hermes-skill-bridge doctor     # static capability report; checks nothing on the host
+d=$(mktemp -d)
+target/release/hermes-supervised-demo --root "$d/demo"     # offline demo; --root must not exist yet
+git init -q "$d/repo" && git -C "$d/repo" -c user.name=demo -c user.email=demo@example.invalid commit -q --allow-empty -m baseline
+target/release/hermes-native agents-assemble --confirm-offline --repo "$d/repo" --plan docs/multiagent-example.json --state "$d/state"   # deterministic doubles, no network
 ```
 
 ## Use with Hermes
@@ -102,7 +104,9 @@ loginctl enable-linger $USER     # keep the timer firing while logged out
 journalctl --user -u hermes-harness-health -o cat | jq
 ```
 
-Status 226/NAMESPACE means unprivileged user namespaces are off. Set `kernel.unprivileged_userns_clone` to 1, or drop the sandboxing lines with `systemctl --user edit hermes-harness-health.service`.
+The timer only checks that the binary starts and prints its static capability report; it does not check dependencies, Hermes, providers or repositories.
+
+Status 226/NAMESPACE means systemd could not set up the unit's namespaces. Check `kernel.unprivileged_userns_clone` (must be 1) and `user.max_user_namespaces` (above 0), see [the CachyOS guide](docs/deployment/cachyos.md). To turn the sandbox off for this unit, run `systemctl --user edit hermes-harness-health.service` and add `[Service]` with `PrivateTmp=no`, `ProtectSystem=no` and `ProtectHome=no`.
 
 ### Provider registry
 
@@ -113,13 +117,13 @@ Local inference is declared in a JSON registry with a `profiles` array and a `ro
 | `ollama` | Plain `http://` on a loopback address only; no `key_env` |
 | `llama.cpp` | `https://`, hostname under `.home.arpa`, bearer key named by `key_env` |
 
-An Ollama box elsewhere on the LAN is declared as a `llama.cpp` profile at `https://<ollama-host>.home.arpa/v1/chat/completions`, behind an internal TLS proxy whose CA the OS trusts. Key values live only in the process environment, never in JSON, Git or argv.
+A remote `llama.cpp` profile must serve `/health`, `/v1/models` and `/v1/chat/completions` over HTTPS with a CA the OS trusts, and report the configured model name. An Ollama box elsewhere on the LAN works only behind a proxy that meets that whole contract; chat alone fails the probe. Key values live only in the process environment, never in JSON, Git or argv.
 
 ```sh
 hermes-skill-bridge provider-probe --provider-registry <path> --role <role> --session <session>
 ```
 
-Back up `~/.config/hermes-harness` and `~/.local/state/hermes-harness` (mode 0700; receipts, ledgers and evidence, never key values). To upgrade, build a new package from a reviewed, pinned commit.
+Back up the configuration, state, evidence and ledger paths you chose, keeping them mode 0700 and free of key values. The ticket CLI defaults to `.harness-runtime` and the multiagent CLI to `.harness-multiagent` in the current directory; bridge paths are given explicitly. `~/.config/hermes-harness` and `~/.local/state/hermes-harness` are suggested locations, not defaults. To upgrade, build a new package from a reviewed, pinned commit.
 
 ## Compared with the Python original
 
@@ -130,14 +134,14 @@ The Python sources are vendored under `tests/fixtures/pycorpus/` (snapshot of 20
 - **Deployment:** native binaries instead of a Python environment. The host still runs Hermes, and `functional-verify` and `repair-dispatch` still call `/usr/bin/python3`.
 - **Startup:** help and probe commands take about 0.5 to 0.8 ms against 70 to 125 ms. Creating a ticket takes 6.6 ms against 169 ms.
 - **Memory:** peak RSS is 2 to 6 MiB against 15 to 31 MiB.
-- **Bugs the original still has are fixed.** The live sandbox plan mounts the merged-usr `/lib`, `/lib64`, `/bin` and `/sbin` links, so dynamic binaries load. `decide` and `inspect` agree on the decision file, and `prompt.submit` sends `text` as the Hermes gateway expects. Git ignores repository-supplied global config, moving a ticket backward revokes the later approvals, and `functional-verify` runs Python in isolated mode. Each is listed in [DIVERGENCES.md](DIVERGENCES.md).
+- **Bugs the original still has are fixed.** The live sandbox plan mounts the merged-usr `/lib`, `/lib64`, `/bin` and `/sbin` links, so dynamic binaries load. `decide` and `inspect` agree on the decision file, and `prompt.submit` sends `text` as the Hermes gateway expects. Git ignores repository-supplied global config, moving a ticket backward revokes the later approvals, and `functional-verify` runs Python with `-E -s` (no `PYTHON*` variables or user site packages; the checkout stays importable). Each is listed in [DIVERGENCES.md](DIVERGENCES.md).
 - **Packaging and logs:** an Arch `PKGBUILD`, a Debian package script, a hardened systemd health timer, and opt-in JSON logs.
 
 ### Costs and changes
 
 - **Git-bound work gains little.** `supervised-demo` and `agents-assemble` are only about 1.1x faster because `git` dominates; memory is about 5x lower. The large ratios on short commands mostly measure Python startup.
 - **Benchmarks are limited.** They come from one WSL2 run, so read the ratios as orders of magnitude ([method](docs/benchmarks.md)).
-- **Stricter JSON decoding.** The broker and Ollama decoders reject UTF-16/32, a UTF-8 BOM, lone surrogates, `NaN`/`Infinity`, nesting of 128 or deeper, and integers above `u64::MAX`. Python accepts some of these.
+- **Stricter JSON decoding.** The broker and Ollama decoders reject UTF-16/32, a UTF-8 BOM, lone surrogates, `NaN`/`Infinity`, and nesting of 128 or deeper. Python accepts some of these.
 - **Other divergences.** Non-UTF-8 paths are refused, help text differs from argparse, probe output is compact JSON, `ollama-smoke` cannot syntax-check Python, and the gateway connector is missing ([above](#use-with-hermes)).
 - **Maintenance.** Contributors need Rust, and the port tracks a frozen upstream snapshot.
 
