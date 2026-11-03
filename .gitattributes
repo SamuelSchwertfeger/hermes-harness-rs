@@ -1,0 +1,2 @@
+tests/fixtures/pycorpus/** -text
+tests/fixtures/pysource_tricky.py -text

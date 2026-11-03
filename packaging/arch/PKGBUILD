@@ -1,0 +1,61 @@
+# Maintainer: Samuel Schwertfeger
+# Build from the local checkout: cd packaging/arch && makepkg -f
+pkgname=hermes-harness
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Rust port of the Hermes harness: skill bridge, probes and offline health check'
+arch=('x86_64')
+url='https://github.com/SamuelSchwertfeger/hermes-harness-rs'
+license=('MIT')
+depends=('glibc' 'gcc-libs' 'git' 'util-linux')
+optdepends=('bubblewrap: sandboxed verifier and functional-verify runs (bwrap)'
+            'python: functional-verify test runs, repair-dispatch syntax check and deploy-preflight check (python3)')
+makedepends=('cargo' 'git')
+# ring's C objects are unusable with Rust's linker when makepkg adds -flto
+options=('!lto')
+source=("hermes-harness::git+file://${startdir}/../..")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$srcdir/hermes-harness"
+  printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+  cd "$srcdir/hermes-harness"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$srcdir/hermes-harness"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release
+}
+
+check() {
+  cd "$srcdir/hermes-harness"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo test --frozen --release
+}
+
+package() {
+  cd "$srcdir/hermes-harness"
+  local bin
+  for bin in hermes-harness hermes-native hermes-skill-bridge \
+    hermes-gateway-contract-probe hermes-gateway-lookup-probe \
+    hermes-gateway-socket-qualification hermes-live-host-probe \
+    hermes-live-operator hermes-skill-install hermes-supervised-demo \
+    hermes-supervised-status hermes-probe; do
+    install -Dm755 "target/release/$bin" "$pkgdir/usr/bin/$bin"
+  done
+  install -Dm644 packaging/systemd/hermes-harness-health.service \
+    packaging/systemd/hermes-harness-health.timer \
+    -t "$pkgdir/usr/lib/systemd/user/"
+  install -d "$pkgdir/usr/share/hermes-harness"
+  cp -r hermes_skills "$pkgdir/usr/share/hermes-harness/skills"
+  install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+  install -Dm644 README.md DIVERGENCES.md -t "$pkgdir/usr/share/doc/$pkgname/"
+}

@@ -1,0 +1,15 @@
+# Rust build output and benchmark results
+/target/
+/bench/results/
+# Python helper scripts (tools/, bench/summarize.py)
+__pycache__/
+*.py[cod]
+# Local runtime state and secrets
+.harness-runtime/
+.env
+.env.*
+*.log
+*.pem
+*.key
+*token*
+*secret*

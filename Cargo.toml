@@ -1,0 +1,117 @@
+[package]
+name = "hermes-harness"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "Ticket-driven, safety-gated multi-agent orchestration for Hermes"
+license = "MIT"
+repository = "https://github.com/SamuelSchwertfeger/hermes-harness-rs"
+publish = false
+
+[lib]
+path = "src/rs/lib.rs"
+
+[[bin]]
+name = "hermes-harness"
+path = "src/rs/main.rs"
+
+[[bin]]
+name = "hermes-native"
+path = "src/rs/bin/hermes_native.rs"
+
+[[bin]]
+name = "hermes-skill-bridge"
+path = "src/rs/bin/hermes_skill_bridge.rs"
+
+[[bin]]
+name = "hermes-gateway-contract-probe"
+path = "src/rs/bin/hermes_gateway_contract_probe.rs"
+
+[[bin]]
+name = "hermes-gateway-lookup-probe"
+path = "src/rs/bin/hermes_gateway_lookup_probe.rs"
+
+[[bin]]
+name = "hermes-gateway-socket-qualification"
+path = "src/rs/bin/hermes_gateway_socket_qualification.rs"
+
+[[bin]]
+name = "hermes-live-host-probe"
+path = "src/rs/bin/hermes_live_host_probe.rs"
+
+[[bin]]
+name = "hermes-live-operator"
+path = "src/rs/bin/hermes_live_operator.rs"
+
+[[bin]]
+name = "hermes-skill-install"
+path = "src/rs/bin/hermes_skill_install.rs"
+
+[[bin]]
+name = "hermes-supervised-demo"
+path = "src/rs/bin/hermes_supervised_demo.rs"
+
+[[bin]]
+name = "hermes-supervised-status"
+path = "src/rs/bin/hermes_supervised_status.rs"
+
+[[bin]]
+name = "hermes-probe"
+path = "src/rs/bin/hermes_probe.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+getrandom = { version = "0.2", features = ["std"] }
+hex = "0.4"
+log = "0.4"
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+ureq = { version = "3.4.2", default-features = false, features = ["rustls", "platform-verifier", "json"] }
+
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "0.38", features = ["fs", "net", "process", "system"] }
+
+[dev-dependencies]
+proptest = "1"
+tempfile = "3"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+unused_qualifications = "warn"
+unreachable_pub = "warn"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+# restriction picks mirroring ruff S/BLE/T10/ERA/EM
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"
+indexing_slicing = "deny"
+print_stderr = "warn"
+string_slice = "deny"
+float_cmp = "deny"
+lossy_float_literal = "deny"
+exit = "warn"
+# pedantic noise that fights the Python port's naming
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_const_for_fn = "allow"
+redundant_pub_crate = "allow"
+
+[package.metadata.cargo-machete]
+# Used by modules landing in later phases.
+ignored = ["rusqlite", "ureq", "tempfile"]
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

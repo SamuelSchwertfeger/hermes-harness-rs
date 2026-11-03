@@ -1,0 +1,10 @@
+{
+  "host": "<gpu-host>",
+  "capacity_mib": 8192,
+  "reserved_mib": 512,
+  "lock_path": "/ABS/PATH/TO/STATE/gpu-host.lock",
+  "units": [
+    {"name": "llama-server-long.service", "vram_mib": 1966, "pinned": true, "managed": false, "model": "qwen35-2b"},
+    {"name": "llama-server-short.service", "vram_mib": 5230, "pinned": false, "managed": false, "model": "qwen3-8b"}
+  ]
+}

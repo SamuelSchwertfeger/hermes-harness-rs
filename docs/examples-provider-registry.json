@@ -1,0 +1,33 @@
+{
+  "profiles": [
+    {
+      "name": "qwen35-long",
+      "backend": "llama.cpp",
+      "model": "qwen35-2b",
+      "url": "https://llm-long.example.home.arpa/v1/chat/completions",
+      "context_tokens": 65536,
+      "key_env": "LOCAL_LLM_API_KEY",
+      "tool_calls": false,
+      "unit": "llama-server-long.service",
+      "gpu_host": "<gpu-host>",
+      "max_concurrency": 1
+    },
+    {
+      "name": "qwen8-short",
+      "backend": "llama.cpp",
+      "model": "qwen3-8b",
+      "url": "https://llm.example.home.arpa/v1/chat/completions",
+      "context_tokens": 4096,
+      "key_env": "LOCAL_LLM_API_KEY",
+      "tool_calls": false,
+      "unit": "llama-server-short.service",
+      "gpu_host": "<gpu-host>",
+      "max_concurrency": 1
+    }
+  ],
+  "roles": {
+    "repair-worker": "qwen8-short",
+    "repair-reviewer": "qwen35-long",
+    "analysis-reader": "qwen35-long"
+  }
+}

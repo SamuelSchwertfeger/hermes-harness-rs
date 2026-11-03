@@ -1,0 +1,51 @@
+[package]
+name = "hermes-harness-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+hermes-harness = { path = ".." }
+serde_json = "1"
+
+[workspace]
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+
+[[bin]]
+name = "broker_request"
+path = "fuzz_targets/broker_request.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "plan_json"
+path = "fuzz_targets/plan_json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "replacement_proposal"
+path = "fuzz_targets/replacement_proposal.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ollama_responses"
+path = "fuzz_targets/ollama_responses.rs"
+test = false
+doc = false
+bench = false

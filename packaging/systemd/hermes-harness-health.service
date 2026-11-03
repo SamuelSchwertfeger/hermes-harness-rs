@@ -1,0 +1,19 @@
+[Unit]
+Description=Hermes harness offline health check (read-only)
+Documentation=file:///usr/share/doc/hermes-harness/README.md
+
+[Service]
+Type=oneshot
+# `doctor` prints static capability facts: no state writes, no network, starts nothing.
+ExecStart=/usr/bin/hermes-skill-bridge doctor
+Environment=HERMES_LOG=info
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+UMask=0077

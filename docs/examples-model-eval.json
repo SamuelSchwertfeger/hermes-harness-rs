@@ -1,0 +1,17 @@
+[
+  {
+    "model": "granite-candidate",
+    "task": "read-only pwd via Hermes terminal tool",
+    "session": "EXAMPLE-UNVERIFIED-SESSION",
+    "expected_tool": "terminal",
+    "response": {
+      "tool_calls": [
+        {"function": {"name": "terminal", "arguments": "{\"command\":\"pwd\"}"}}
+      ]
+    },
+    "policy_denied": false,
+    "duration_ms": 0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+]

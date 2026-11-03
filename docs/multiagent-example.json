@@ -1,0 +1,9 @@
+{
+  "id": "example",
+  "objective": "Offline bounded evidence generation",
+  "primary_identity": "offline-primary",
+  "nodes": [
+    {"id": "first", "objective": "Create first evidence", "owned_paths": ["first.txt"]},
+    {"id": "second", "objective": "Create second evidence", "owned_paths": ["second.txt"], "dependencies": ["first"]}
+  ]
+}

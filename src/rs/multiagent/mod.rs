@@ -1,0 +1,24 @@
+//! Offline multi-task orchestration, local inference, edits, review and verification.
+pub mod apply_edits;
+pub mod cli;
+pub mod cyber;
+pub mod dynamic_pool;
+pub mod evidence;
+pub mod integration_manifest;
+pub mod local_inference;
+pub mod model_edits;
+pub mod model_pipeline;
+pub mod model_review;
+pub mod ollama_discovery;
+pub mod ollama_native;
+pub mod plan_io;
+pub mod replace_edits;
+pub mod replacement_pipeline;
+pub mod replacement_proposals;
+pub mod routing;
+pub mod runtime;
+pub mod sandbox_profile;
+pub mod sandbox_tools;
+pub mod verification_evidence;
+pub mod verification_manifest;
+pub mod verifier_runner;
